@@ -24,13 +24,13 @@ jobs:
           fetch-depth: 0
       - name: Merge upstream without overwriting fork changes
         env:
-          Ouonnki/OuonnkiTV_REPO: Ouonnki/OuonnkiTV
-          Ouonnki/OuonnkiTV_main: UPmain
+          UPSTREAM_REPO: Ouonnki/OuonnkiTV
+          UPSTREAM_BRANCH: main
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git remote add upstream "https://github.com/${Ouonnki/OuonnkiTV_REPO}.git" 2>/dev/null || true
-          git fetch --no-tags upstream "${Ouonnki/OuonnkiTV_main}"
-          git merge --no-ff --no-edit "upstream/${Ouonnki/OuonnkiTV_main}"
+          git remote add upstream "https://github.com/${UPSTREAM_REPO}.git" 2>/dev/null || true
+          git fetch --no-tags upstream "${UPSTREAM_BRANCH}"
+          git merge --no-ff --no-edit "upstream/${UPSTREAM_BRANCH}"
           git push origin HEAD:main
