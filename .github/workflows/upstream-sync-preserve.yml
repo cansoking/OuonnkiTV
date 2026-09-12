@@ -1,4 +1,4 @@
-name: Upstream Sync (Preserve Fork Changes)
+name: Upstream Sync (Safe Automatic Merge)
 
 on:
   schedule:
@@ -16,21 +16,38 @@ jobs:
   sync:
     if: ${{ github.event.repository.fork }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout fork
         uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
-      - name: Merge upstream without overwriting fork changes
+      - name: Safe merge, verify, and publish
         env:
           UPSTREAM_REPO: Ouonnki/OuonnkiTV
-          UPSTREAM_BRANCH: main
+          UPSTREAM_main: UPSTREAM_main_VALUE
+        shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git remote add upstream "https://github.com/${UPSTREAM_REPO}.git" 2>/dev/null || true
-          git fetch --no-tags upstream "${UPSTREAM_BRANCH}"
-          git merge --no-ff --no-edit "upstream/${UPSTREAM_BRANCH}"
+          git fetch --no-tags upstream "${UPSTREAM_main}"
+          backup_tag="upstream-sync-backup-${GITHUB_RUN_ID}"
+          git tag "${backup_tag}" HEAD
+          git push origin "${backup_tag}"
+          if ! git merge --no-ff --no-edit -X ours "upstream/${UPSTREAM_main}"; then
+            echo "Automatic merge failed. Backup tag ${backup_tag} was pushed; no main update was published." >&2
+            git merge --abort || true
+            exit 1
+          fi
+          if [ -f package.json ]; then
+            if node -e 'const p=require("./package.json");process.exit(p.scripts?.test?0:1)' 2>/dev/null; then npm test --if-present; fi
+            if node -e 'const p=require("./package.json");process.exit(p.scripts?.build?0:1)' 2>/dev/null; then npm run build --if-present; fi
+          fi
+          if [ -f bun.lockb ] || [ -f bun.lock ]; then
+            command -v bun >/dev/null && bun test || true
+          fi
+          git diff --check
           git push origin HEAD:main
