@@ -1,0 +1,36 @@
+name: Upstream Sync (Preserve Fork Changes)
+
+on:
+  schedule:
+    - cron: "23 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: upstream-sync-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: ${{ github.event.repository.fork }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Merge upstream without overwriting fork changes
+        env:
+          Ouonnki/OuonnkiTV_REPO: Ouonnki/OuonnkiTV
+          Ouonnki/OuonnkiTV_main: UPmain
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream "https://github.com/${Ouonnki/OuonnkiTV_REPO}.git" 2>/dev/null || true
+          git fetch --no-tags upstream "${Ouonnki/OuonnkiTV_main}"
+          git merge --no-ff --no-edit "upstream/${Ouonnki/OuonnkiTV_main}"
+          git push origin HEAD:main
